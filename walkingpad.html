@@ -280,13 +280,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
   <div class="ring-pb-row">
     <div class="ring-wrap" id="ringWrap">
       <div class="ring-container" id="ringContainer">
-        <svg class="ring-svg" id="ringSvg" viewBox="0 0 260 260">
+        <svg class="ring-svg" id="ringSvg" viewBox="0 0 320 320">
           <!-- goal ring (outer, slightly smaller) -->
-          <circle class="goal-ring"      id="goalRingTrack" cx="130" cy="130" r="118"/>
-          <circle class="goal-ring-fill" id="goalRingFill"  cx="130" cy="130" r="118" style="opacity:0"/>
+          <circle class="goal-ring"      id="goalRingTrack" cx="160" cy="160" r="148"/>
+          <circle class="goal-ring-fill" id="goalRingFill"  cx="160" cy="160" r="148" style="opacity:0"/>
           <!-- speed ring -->
-          <circle class="ring-track" cx="130" cy="130" r="104"/>
-          <circle class="ring-fill"  id="ringFill" cx="130" cy="130" r="104"/>
+          <circle class="ring-track" cx="160" cy="160" r="130"/>
+          <circle class="ring-fill"  id="ringFill" cx="160" cy="160" r="130"/>
         </svg>
         <div class="ring-center">
           <div class="spd-val" id="spdVal">0.0</div>
@@ -1015,7 +1015,7 @@ function setControls(en){
 }
 
 // Speed ring r=104, 270° arc
-const R=104;
+const R=130;
 const ARC=2*Math.PI*R*(270/360);
 function updateRing(spd){
   const frac=Math.min(spd/6.0,1);
@@ -1035,7 +1035,7 @@ function sizeRing(){
   document.getElementById('ringSvg').style.width=sz+'px';
   document.getElementById('ringSvg').style.height=sz+'px';
   // Recalc goal ring arc
-  const rG=118,circG=2*Math.PI*rG*(270/360);
+  const rG=148,circG=2*Math.PI*rG*(270/360);
   document.getElementById('goalRingFill').style.strokeDasharray=circG;
   document.getElementById('goalRingFill').style.strokeDashoffset=circG;
   document.getElementById('goalRingTrack').style.strokeDasharray=circG+' '+(2*Math.PI*rG);
@@ -1267,9 +1267,9 @@ renderTopProfile();
 if(!navigator.bluetooth)document.getElementById('bleWarnBanner').style.display='block';
 if(!db.profiles.length)setTimeout(()=>openNewForm(),500);
 // init goal ring
-document.getElementById('goalRingFill').style.strokeDasharray=2*Math.PI*118*(270/360);
-document.getElementById('goalRingFill').style.strokeDashoffset=2*Math.PI*118*(270/360);
-document.getElementById('goalRingTrack').style.strokeDasharray=(2*Math.PI*118*(270/360))+' '+(2*Math.PI*118);
+document.getElementById('goalRingFill').style.strokeDasharray=2*Math.PI*148*(270/360);
+document.getElementById('goalRingFill').style.strokeDashoffset=2*Math.PI*148*(270/360);
+document.getElementById('goalRingTrack').style.strokeDasharray=(2*Math.PI*148*(270/360))+' '+(2*Math.PI*148);
 </script>
 </body>
 </html>
