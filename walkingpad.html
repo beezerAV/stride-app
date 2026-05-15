@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>STRIDE</title>
+<link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0a0b; --panel:#111114; --border:#1e1e24; --border2:#2a2a34;
+  --text:#e8e8ef; --muted:#555566; --dim:#2a2a34;
+  --accent:#e8ff47; --accent2:#47ffe8; --danger:#ff4747; --warn:#ff9f47; --green:#47ff8a;
+  --mono:'Azeret Mono',monospace; --display:'Barlow Condensed',sans-serif;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html,body {
+  width:100%; height:100%; overflow:hidden;
+  background:var(--bg); color:var(--text);
+  font-family:var(--mono); touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* ── SCREENS ── */
+.screen { display:none; width:100%; height:100%; flex-direction:column; }
+.screen.active { display:flex; }
+
+/* ══════════════════════════════════════
+   MAIN WORKOUT SCREEN
+   Layout: header / ring / stats / controls
+   Target: 360×740 S9, no scroll
+══════════════════════════════════════ */
+#screen-workout {
+  padding: 0;
+  background: var(--bg);
+}
+
+/* Top bar */
+.top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 10px;
+  flex-shrink: 0;
+}
+.logo {
+  font-family:var(--display); font-weight:900; font-size:22px;
+  letter-spacing:5px; color:var(--accent);
+}
+.logo span { color:var(--muted); font-weight:400; }
+.ble-pill {
+  display:flex; align-items:center; gap:6px;
+  font-size:9px; letter-spacing:2px; text-transform:uppercase;
+  color:var(--muted); padding:5px 10px;
+  border:1px solid var(--border2); border-radius:2px;
+  cursor:pointer; transition:border-color .2s;
+}
+.ble-pill:hover { border-color:var(--accent2); }
+.ble-dot {
+  width:6px; height:6px; border-radius:50%;
+  background:var(--dim); transition:background .3s, box-shadow .3s; flex-shrink:0;
+}
+.ble-dot.connected  { background:var(--green); box-shadow:0 0 7px var(--green); }
+.ble-dot.connecting { background:var(--warn);  box-shadow:0 0 7px var(--warn); animation:blink 1s infinite; }
+.ble-dot.error      { background:var(--danger); box-shadow:0 0 7px var(--danger); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+/* Profile strip */
+.profile-strip {
+  display:flex; align-items:center; gap:10px;
+  padding:0 16px 10px; flex-shrink:0;
+}
+.p-avatar {
+  width:38px; height:38px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--display); font-size:16px; font-weight:700;
+  border:2px solid var(--border2); cursor:pointer;
+  transition:border-color .2s;
+}
+.p-avatar:hover { border-color:var(--accent); }
+.p-info { flex:1; min-width:0; }
+.p-name {
+  font-family:var(--display); font-size:20px; font-weight:700;
+  letter-spacing:.5px; line-height:1; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis;
+}
+.p-weight { font-size:9px; color:var(--muted); letter-spacing:2px; margin-top:3px; }
+.p-switch {
+  background:var(--border2); border:none; color:var(--muted);
+  font-family:var(--mono); font-size:9px; letter-spacing:1.5px;
+  text-transform:uppercase; padding:8px 12px; border-radius:3px;
+  cursor:pointer; flex-shrink:0; transition:all .15s;
+}
+.p-switch:hover { background:var(--border); color:var(--text); }
+
+/* Speed ring */
+.ring-wrap {
+  flex:1; display:flex; align-items:center; justify-content:center;
+  position:relative; min-height:0;
+}
+.ring-container { position:relative; }
+.ring-svg { display:block; }
+.ring-track { fill:none; stroke:var(--border2); stroke-width:10; stroke-linecap:round; }
+.ring-fill {
+  fill:none; stroke:var(--accent); stroke-width:10; stroke-linecap:round;
+  transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1), stroke .3s;
+}
+.ring-center {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.spd-val {
+  font-family:var(--display); font-weight:900; line-height:1;
+  color:var(--text); letter-spacing:-3px;
+  font-size:clamp(60px, 17vw, 88px);
+}
+.spd-unit { font-size:11px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-top:4px; }
+.spd-lbl  { font-size:8px;  letter-spacing:4px; color:var(--dim);   text-transform:uppercase; margin-top:2px; }
+
+/* Stats row */
+.stats-row {
+  display:grid; grid-template-columns:1fr 1fr 1fr;
+  gap:1px; background:var(--border2);
+  border-top:1px solid var(--border2); border-bottom:1px solid var(--border2);
+  flex-shrink:0;
+}
+.stat-cell {
+  background:var(--panel); padding:12px 6px;
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+}
+.stat-val {
+  font-family:var(--display); font-weight:700; line-height:1;
+  color:var(--text); font-size:clamp(22px, 6vw, 32px);
+}
+.stat-lbl { font-size:8px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+
+/* Speed adjust row */
+.adj-row {
+  display:grid; grid-template-columns:1fr auto 1fr;
+  gap:10px; padding:10px 16px; flex-shrink:0; align-items:center;
+}
+.adj-btn {
+  background:var(--panel); border:1px solid var(--border2); color:var(--text);
+  font-family:var(--display); font-size:28px; font-weight:700;
+  border-radius:4px; cursor:pointer; transition:all .15s;
+  padding:12px; line-height:1; text-align:center;
+}
+.adj-btn:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+.adj-btn:active:not(:disabled) { transform:scale(.95); }
+.adj-btn:disabled { opacity:.25; cursor:not-allowed; }
+.tgt-speed {
+  text-align:center; font-family:var(--display); font-weight:700;
+  font-size:28px; color:var(--accent); letter-spacing:-1px;
+  white-space:nowrap;
+}
+.tgt-lbl { font-size:8px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-top:2px; }
+
+/* Main action buttons */
+.action-row {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:10px; padding:0 16px 16px; flex-shrink:0;
+}
+.act-btn {
+  border:none; border-radius:4px; cursor:pointer;
+  font-family:var(--display); font-weight:900;
+  letter-spacing:4px; text-transform:uppercase;
+  font-size:clamp(16px, 4.5vw, 22px);
+  padding:20px 12px; line-height:1;
+  transition:all .15s; position:relative;
+}
+.act-btn:active { transform:scale(.97); }
+.btn-connect-main {
+  background:var(--accent); color:#0a0a0b;
+  grid-column:1/-1;
+}
+.btn-connect-main.connected-state {
+  background:var(--border2); color:var(--muted);
+  font-size:13px; padding:14px;
+}
+.btn-start { background:var(--green); color:#0a0a0b; }
+.btn-stop  { background:var(--panel); color:var(--danger); border:2px solid var(--danger); }
+.btn-stop:hover:not(:disabled) { background:var(--danger); color:#0a0a0b; }
+.act-btn:disabled { opacity:.3; cursor:not-allowed; }
+
+/* ══════════════════════════════════════
+   PROFILE PICKER MODAL (slide-up sheet)
+══════════════════════════════════════ */
+.sheet-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.88);
+  z-index:200; display:flex; align-items:flex-end; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.sheet-overlay.open { opacity:1; pointer-events:all; }
+.sheet {
+  background:var(--panel); border:1px solid var(--border2); border-bottom:none;
+  border-radius:8px 8px 0 0; width:100%; max-width:480px;
+  padding:24px 16px 40px; max-height:88vh; overflow-y:auto;
+  transform:translateY(24px); transition:transform .25s cubic-bezier(.4,0,.2,1);
+}
+.sheet-overlay.open .sheet { transform:translateY(0); }
+.sheet-head {
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;
+}
+.sheet-title {
+  font-family:var(--display); font-size:20px; font-weight:700;
+  letter-spacing:3px; text-transform:uppercase;
+}
+.sheet-close {
+  background:none; border:none; color:var(--muted); font-size:22px;
+  cursor:pointer; padding:4px; line-height:1;
+}
+.sheet-close:hover { color:var(--text); }
+
+/* Profile cards in sheet */
+.p-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+.p-card {
+  background:var(--bg); border:1px solid var(--border2); border-radius:4px;
+  padding:14px 12px; cursor:pointer; display:flex; align-items:center; gap:10px;
+  transition:all .15s;
+}
+.p-card:active { transform:scale(.97); }
+.p-card:hover { border-color:var(--accent); }
+.p-card.active-card { border-color:var(--accent); background:rgba(232,255,71,.05); }
+.pc-avatar {
+  width:34px; height:34px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--display); font-size:15px; font-weight:700;
+}
+.pc-name { font-family:var(--display); font-size:15px; font-weight:600; letter-spacing:.3px; }
+.pc-sub  { font-size:9px; color:var(--muted); letter-spacing:1px; margin-top:2px; }
+
+/* Profile form */
+.p-form { display:flex; flex-direction:column; gap:14px; }
+.f-label { font-size:9px; letter-spacing:2.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; display:block; }
+.f-input {
+  background:var(--bg); border:1px solid var(--border2); border-radius:3px;
+  color:var(--text); font-family:var(--mono); font-size:15px;
+  padding:12px; outline:none; width:100%; transition:border-color .15s;
+}
+.f-input:focus { border-color:var(--accent2); }
+.swatches { display:flex; gap:9px; flex-wrap:wrap; }
+.sw {
+  width:28px; height:28px; border-radius:50%; cursor:pointer;
+  border:2px solid transparent; transition:all .15s;
+}
+.sw:hover { transform:scale(1.15); }
+.sw.on { border-color:white; }
+.f-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:4px; }
+.f-btn-save {
+  background:var(--accent); color:#0a0a0b;
+  font-family:var(--display); font-size:15px; font-weight:700;
+  letter-spacing:2px; text-transform:uppercase;
+  padding:14px; border:none; border-radius:3px; cursor:pointer;
+}
+.f-btn-save:hover { filter:brightness(1.1); }
+.f-btn-cancel {
+  background:var(--bg); color:var(--muted);
+  font-family:var(--display); font-size:14px; font-weight:600;
+  letter-spacing:2px; text-transform:uppercase;
+  padding:14px; border:1px solid var(--border2); border-radius:3px; cursor:pointer;
+}
+.f-btn-cancel:hover { border-color:var(--text); color:var(--text); }
+.f-btn-delete {
+  background:rgba(255,71,71,.1); color:var(--danger);
+  font-family:var(--display); font-size:13px; font-weight:600;
+  letter-spacing:2px; text-transform:uppercase;
+  padding:12px; border:1px solid rgba(255,71,71,.3); border-radius:3px; cursor:pointer;
+  grid-column:1/-1;
+}
+.f-btn-delete:hover { background:var(--danger); color:#0a0a0b; }
+.f-btn-new {
+  background:var(--border2); color:var(--text);
+  font-family:var(--display); font-size:14px; font-weight:700;
+  letter-spacing:3px; text-transform:uppercase;
+  padding:14px; border:none; border-radius:3px; cursor:pointer; width:100%;
+}
+.f-btn-new:hover { background:var(--border); }
+
+/* Wake lock indicator */
+.wake-badge {
+  font-size:8px; letter-spacing:1.5px; color:var(--dim);
+  text-align:center; padding-bottom:4px; flex-shrink:0;
+}
+.wake-badge.on { color:var(--accent2); }
+
+/* No profile warning */
+.no-profile-warn {
+  background:rgba(255,159,71,.08); border:1px solid rgba(255,159,71,.3);
+  margin:0 16px; border-radius:3px; padding:10px 14px;
+  font-size:10px; color:var(--warn); letter-spacing:.5px; flex-shrink:0;
+  display:none;
+}
+.no-profile-warn.show { display:block; }
+
+/* Unsupported */
+.ble-warn {
+  background:rgba(255,71,71,.08); border:1px solid rgba(255,71,71,.3);
+  margin:0 16px; border-radius:3px; padding:10px 14px;
+  font-size:10px; color:var(--danger); letter-spacing:.5px; flex-shrink:0;
+}
+
+/* History sheet */
+.hist-list { display:flex; flex-direction:column; gap:8px; }
+.hist-card {
+  background:var(--bg); border:1px solid var(--border2);
+  border-left:3px solid var(--green);
+  border-radius:0 4px 4px 0; padding:12px 14px;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.hist-date { font-size:10px; color:var(--muted); margin-bottom:3px; }
+.hist-dur  { font-family:var(--display); font-size:18px; font-weight:600; }
+.hist-nums { display:flex; gap:14px; text-align:right; }
+.hist-n    { display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+.hist-v    { font-family:var(--display); font-size:16px; font-weight:600; color:var(--accent); }
+.hist-l    { font-size:8px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); }
+.empty-msg { text-align:center; padding:32px 20px; color:var(--dim); font-size:10px; letter-spacing:2px; text-transform:uppercase; line-height:2.2; }
+
+/* Totals bar */
+.totals-bar {
+  display:grid; grid-template-columns:1fr 1fr 1fr;
+  gap:1px; background:var(--border2);
+  border-radius:4px; overflow:hidden; margin-bottom:16px;
+}
+.tot-cell { background:var(--bg); padding:12px 8px; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.tot-v { font-family:var(--display); font-size:20px; font-weight:700; color:var(--accent); }
+.tot-l { font-size:8px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+
+::-webkit-scrollbar { width:3px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<!-- ══ WORKOUT SCREEN ══ -->
+<div class="screen active" id="screen-workout">
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <div class="logo">STRIDE<span>/pad</span></div>
+    <div class="ble-pill" id="blePill" onclick="handleConnect()">
+      <div class="ble-dot" id="bleDot"></div>
+      <span id="bleText">CONNECT</span>
+    </div>
+  </div>
+
+  <!-- No profile warning -->
+  <div class="no-profile-warn" id="noProfileWarn">
+    Select a profile for accurate calorie tracking
+  </div>
+
+  <!-- No BLE warning -->
+  <div id="bleWarnBanner" style="display:none" class="ble-warn">
+    Web Bluetooth requires Chrome on Android or desktop
+  </div>
+
+  <!-- Profile strip -->
+  <div class="profile-strip">
+    <div class="p-avatar" id="topAvatar" onclick="openPicker()">?</div>
+    <div class="p-info">
+      <div class="p-name" id="topName">No Profile</div>
+      <div class="p-weight" id="topWeight">TAP TO SELECT</div>
+    </div>
+    <button class="p-switch" onclick="openPicker()">Switch</button>
+  </div>
+
+  <!-- Speed ring -->
+  <div class="ring-wrap" id="ringWrap">
+    <div class="ring-container" id="ringContainer">
+      <svg class="ring-svg" id="ringSvg" viewBox="0 0 260 260">
+        <circle class="ring-track" id="ringTrack" cx="130" cy="130" r="108"/>
+        <circle class="ring-fill"  id="ringFill"  cx="130" cy="130" r="108"/>
+      </svg>
+      <div class="ring-center">
+        <div class="spd-val" id="spdVal">0.0</div>
+        <div class="spd-unit">km/h</div>
+        <div class="spd-lbl">LIVE SPEED</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-cell">
+      <div class="stat-val" id="statTime">00:00</div>
+      <div class="stat-lbl">Time</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-val" id="statDist">0.00</div>
+      <div class="stat-lbl">km</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-val" id="statCals">0</div>
+      <div class="stat-lbl">kcal</div>
+    </div>
+  </div>
+
+  <!-- Speed adjust -->
+  <div class="adj-row">
+    <button class="adj-btn" id="btnSlower" onclick="adjustSpeed(-0.5)" disabled>−</button>
+    <div style="text-align:center">
+      <div class="tgt-speed" id="tgtSpd">1.0 <span style="font-size:14px;color:var(--muted)">km/h</span></div>
+      <div class="tgt-lbl">Target</div>
+    </div>
+    <button class="adj-btn" id="btnFaster" onclick="adjustSpeed(+0.5)" disabled>+</button>
+  </div>
+
+  <!-- Connect / Start / Stop -->
+  <div class="action-row" id="actionRow">
+    <button class="act-btn btn-connect-main" id="btnConnectMain" onclick="handleConnect()">
+      CONNECT
+    </button>
+  </div>
+
+  <!-- Wake lock badge -->
+  <div class="wake-badge" id="wakeBadge">SCREEN LOCK ACTIVE</div>
+
+</div>
+
+<!-- ══ PROFILE SHEET ══ -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="closeSheetOutside(event)">
+  <div class="sheet" id="sheetContent"></div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════
+const COLORS = ['#e8ff47','#47ffe8','#ff9f47','#ff4747','#47ff8a','#a78bfa','#f472b6','#38bdf8','#fb923c','#a3e635'];
+
+function loadData() {
+  try { return JSON.parse(localStorage.getItem('stride_v2') || 'null') || {profiles:[],activeId:null}; }
+  catch(e) { return {profiles:[],activeId:null}; }
+}
+function saveData() { localStorage.setItem('stride_v2', JSON.stringify(db)); }
+
+let db = loadData();
+let editingId = null;
+let selColor  = COLORS[0];
+
+function activeProfile() { return db.profiles.find(p => p.id === db.activeId) || null; }
+
+function initials(name) {
+  return (name||'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) || '?';
+}
+
+// ════════════════════════════════════════════
+// BLE PROTOCOL
+// ════════════════════════════════════════════
+const SVC   = '0000fe00-0000-1000-8000-00805f9b34fb';
+const C_RX  = '0000fe01-0000-1000-8000-00805f9b34fb';
+const C_TX  = '0000fe02-0000-1000-8000-00805f9b34fb';
+
+let bleDevice, notifChar, writeChar;
+let connected=false, running=false;
+let targetSpd=1.0, pollTimer=null;
+let sesStart=null, _cTime=null, _cSpd=0, _cals=0;
+
+function met(kmh) {
+  if(kmh<=3.2) return 2.8; if(kmh<=4.0) return 3.5;
+  if(kmh<=4.8) return 4.3; if(kmh<=5.6) return 5.0; return 6.0;
+}
+function calcCals(t, spd, on) {
+  const w = (activeProfile()?.weightLbs || 165) * 0.453592;
+  if(!on||_cTime===null){_cTime=t;_cSpd=spd;return _cals;}
+  const dt=t-_cTime;
+  if(dt>0&&dt<10) _cals += met(_cSpd)*w*(dt/3600);
+  _cTime=t; _cSpd=spd; return _cals;
+}
+function resetCals(){_cTime=null;_cSpd=0;_cals=0;}
+
+function xor(b){return b.reduce((a,x)=>a^x,0);}
+function cmd(...b){const c=xor(b);return new Uint8Array([0xf7,...b,c,0xfd]);}
+const C_START = ()=>cmd(0xa2,0x04,0x01);
+const C_STOP  = ()=>cmd(0xa2,0x04,0x00);
+const C_STAT  = ()=>cmd(0xa2,0x00,0x00);
+const C_MODE  = m =>cmd(0xa2,0x02,m);
+const C_SPD   = s =>cmd(0xa2,0x01,Math.round(s*10));
+
+async function tx(c){
+  if(!writeChar) return;
+  try { await writeChar.writeValue(c); } catch(e){}
+}
+
+function parseMsg(data) {
+  const b = new Uint8Array(data.buffer);
+  if(b.length<14||b[0]!==0xf8||b[1]!==0xa2) return;
+  const state=b[2], spd=b[3]/10, mode=b[4];
+  const dist=((b[7]<<8)|b[8])/100;
+  const time=(b[9]<<8)|b[10];
+  const steps=(b[11]<<8)|b[12];
+
+  updateRing(spd);
+  document.getElementById('statDist').textContent = dist.toFixed(2);
+  document.getElementById('statTime').textContent = fmt(time);
+
+  const wasRunning=running;
+  running=(state===1);
+
+  if(running&&!wasRunning&&!sesStart){
+    sesStart={dist,time,steps};
+    resetCals();
+  }
+
+  const cals=calcCals(time,spd,running);
+  document.getElementById('statCals').textContent=Math.round(cals);
+
+  if(!running&&wasRunning&&sesStart){
+    const dur=time-sesStart.time;
+    if(dur>5){
+      const p=activeProfile();
+      if(p){
+        if(!p.sessions) p.sessions=[];
+        p.sessions.push({
+          ts:Date.now(),
+          date:new Date().toLocaleString('en',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}),
+          duration:dur,
+          distance:Math.max(0,dist-sesStart.dist),
+          calories:Math.round(_cals)
+        });
+        if(p.sessions.length>90) p.sessions=p.sessions.slice(-90);
+        saveData();
+      }
+    }
+    sesStart=null;
+  }
+}
+
+async function handleConnect(){
+  if(connected){await doDisconnect();return;}
+  if(!navigator.bluetooth){setBle('error','NO BLE');return;}
+  setBle('connecting','...');
+  try {
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters:[{services:[SVC]},{namePrefix:'KS-'},{namePrefix:'WalkingPad'}],
+      optionalServices:[SVC]
+    });
+    bleDevice.addEventListener('gattserverdisconnected', onDisc);
+    const srv = await bleDevice.gatt.connect();
+    const svc = await srv.getPrimaryService(SVC);
+    notifChar  = await svc.getCharacteristic(C_RX);
+    writeChar  = await svc.getCharacteristic(C_TX);
+    await notifChar.startNotifications();
+    notifChar.addEventListener('characteristicvaluechanged', e=>parseMsg(e.target.value));
+    connected=true;
+    setBle('connected','ON');
+    setControls(true);
+    pollTimer=setInterval(()=>tx(C_STAT()),2000);
+    await tx(C_STAT());
+    requestWakeLock();
+  } catch(e){
+    if(e.name!=='NotFoundError') setBle('error','ERR');
+    else setBle('','CONNECT');
+    setControls(false);
+  }
+}
+
+function onDisc(){
+  connected=false;
+  clearInterval(pollTimer);
+  setBle('','CONNECT');
+  setControls(false);
+  releaseWakeLock();
+  resetStats();
+}
+
+async function doDisconnect(){
+  clearInterval(pollTimer);
+  if(bleDevice?.gatt?.connected) bleDevice.gatt.disconnect();
+  connected=false;
+  setBle('','CONNECT');
+  setControls(false);
+  releaseWakeLock();
+  resetStats();
+}
+
+async function doStart(){
+  const p=activeProfile();
+  if(!p){openPicker();return;}
+  await tx(C_MODE(1));
+  await sleep(300);
+  await tx(C_START());
+  await sleep(300);
+  await tx(C_SPD(targetSpd));
+}
+
+async function doStop(){ await tx(C_STOP()); }
+async function adjustSpeed(d){
+  targetSpd=Math.max(0.5,Math.min(6.0,Math.round((targetSpd+d)*10)/10));
+  document.getElementById('tgtSpd').innerHTML=
+    targetSpd.toFixed(1)+' <span style="font-size:14px;color:var(--muted)">km/h</span>';
+  if(running) await tx(C_SPD(targetSpd));
+}
+
+// ════════════════════════════════════════════
+// UI HELPERS
+// ════════════════════════════════════════════
+function setBle(state, label){
+  document.getElementById('bleDot').className='ble-dot'+(state?' '+state:'');
+  document.getElementById('bleText').textContent=label;
+}
+
+function setControls(en){
+  document.getElementById('btnSlower').disabled=!en;
+  document.getElementById('btnFaster').disabled=!en;
+  const row=document.getElementById('actionRow');
+  if(en){
+    row.innerHTML=`
+      <button class="act-btn btn-start" onclick="doStart()">&#9654; START</button>
+      <button class="act-btn btn-stop"  onclick="doStop()">&#9632; STOP</button>`;
+  } else {
+    row.innerHTML=`<button class="act-btn btn-connect-main" id="btnConnectMain" onclick="handleConnect()">CONNECT</button>`;
+  }
+}
+
+// Ring: r=108, circumference for 270° arc = 2π×108×(270/360) ≈ 513
+const ARC=513;
+function updateRing(spd){
+  const frac=Math.min(spd/6.0,1);
+  const fill=document.getElementById('ringFill');
+  fill.style.strokeDashoffset=ARC-frac*ARC;
+  fill.style.stroke=frac>.8?'var(--accent2)':frac>.5?'var(--warn)':'var(--accent)';
+  document.getElementById('spdVal').textContent=spd.toFixed(1);
+}
+
+function sizeRing(){
+  const wrap=document.getElementById('ringWrap');
+  const h=wrap.clientHeight;
+  const w=wrap.clientWidth;
+  const sz=Math.min(h,w)-16;
+  const svg=document.getElementById('ringSvg');
+  svg.style.width=sz+'px'; svg.style.height=sz+'px';
+  // ring-fill dasharray needs recalc based on r=108 always (viewBox fixed)
+  const r=108; const circ=2*Math.PI*r*(270/360);
+  document.getElementById('ringFill').style.strokeDasharray=circ;
+  document.getElementById('ringFill').style.strokeDashoffset=circ;
+  document.getElementById('ringTrack').style.strokeDasharray=circ+' '+(2*Math.PI*r);
+}
+
+// Ring rotated -135deg so arc starts bottom-left
+document.getElementById('ringSvg').style.transform='rotate(-135deg)';
+
+function fmt(s){
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function resetStats(){
+  updateRing(0);
+  document.getElementById('statTime').textContent='00:00';
+  document.getElementById('statDist').textContent='0.00';
+  document.getElementById('statCals').textContent='0';
+  resetCals(); running=false;
+}
+
+// ════════════════════════════════════════════
+// ACTIVE PROFILE DISPLAY
+// ════════════════════════════════════════════
+function renderTopProfile(){
+  const p=activeProfile();
+  const av=document.getElementById('topAvatar');
+  const nm=document.getElementById('topName');
+  const wt=document.getElementById('topWeight');
+  const warn=document.getElementById('noProfileWarn');
+  if(p){
+    av.textContent=initials(p.name);
+    av.style.background=p.color+'22';
+    av.style.color=p.color;
+    av.style.borderColor=p.color+'88';
+    nm.textContent=p.name;
+    wt.textContent=p.weightLbs+' LBS';
+    warn.classList.remove('show');
+  } else {
+    av.textContent='?'; av.style.background=''; av.style.color='var(--muted)'; av.style.borderColor='var(--border2)';
+    nm.textContent='No Profile'; wt.textContent='TAP TO SELECT';
+    warn.classList.add('show');
+  }
+}
+
+// ════════════════════════════════════════════
+// SHEET
+// ════════════════════════════════════════════
+function openSheet(html){
+  document.getElementById('sheetContent').innerHTML=html;
+  document.getElementById('sheetOverlay').classList.add('open');
+}
+function closeSheet(){
+  document.getElementById('sheetOverlay').classList.remove('open');
+}
+function closeSheetOutside(e){
+  if(e.target===document.getElementById('sheetOverlay')) closeSheet();
+}
+
+// ── PICKER ──
+function openPicker(){
+  const cards=db.profiles.map(p=>`
+    <div class="p-card ${p.id===db.activeId?'active-card':''}" onclick="selectProfile('${p.id}')">
+      <div class="pc-avatar" style="background:${p.color}22;color:${p.color}">${initials(p.name)}</div>
+      <div>
+        <div class="pc-name">${p.name}</div>
+        <div class="pc-sub">${p.weightLbs}lbs · ${(p.sessions||[]).length} sessions</div>
+      </div>
+    </div>`).join('');
+
+  const histBtn = db.activeId
+    ? `<button class="f-btn-cancel" style="flex:1" onclick="openHistory()">History</button>` : '';
+  const editBtn = db.activeId
+    ? `<button class="f-btn-cancel" style="flex:1" onclick="openEditForm('${db.activeId}')">Edit</button>` : '';
+
+  openSheet(`
+    <div class="sheet-head">
+      <div class="sheet-title">Profiles</div>
+      <button class="sheet-close" onclick="closeSheet()">✕</button>
+    </div>
+    <div class="p-grid">${cards||'<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--dim);font-size:10px;letter-spacing:2px">NO PROFILES</div>'}</div>
+    <div style="display:flex;gap:10px">
+      <button class="f-btn-new" style="flex:2" onclick="openNewForm()">+ New Profile</button>
+      ${editBtn}${histBtn}
+    </div>
+  `);
+}
+
+function selectProfile(id){
+  db.activeId=id; saveData();
+  renderTopProfile();
+  openPicker(); // refresh checkmark
+  // brief close after selection
+  setTimeout(closeSheet, 300);
+}
+
+// ── HISTORY ──
+function openHistory(){
+  const p=activeProfile();
+  if(!p){closeSheet();return;}
+  const sessions=[...(p.sessions||[])].reverse().slice(0,30);
+  const totDist=((p.sessions||[]).reduce((a,s)=>a+(s.distance||0),0)).toFixed(1);
+  const totCals=(p.sessions||[]).reduce((a,s)=>a+(s.calories||0),0);
+  const cards=sessions.map((s,i)=>`
+    <div class="hist-card">
+      <div><div class="hist-date">${s.date}</div><div class="hist-dur">${fmt(s.duration)}</div></div>
+      <div class="hist-nums">
+        <div class="hist-n"><div class="hist-v">${(s.distance||0).toFixed(2)}</div><div class="hist-l">km</div></div>
+        <div class="hist-n"><div class="hist-v">${s.calories||0}</div><div class="hist-l">kcal</div></div>
+      </div>
+    </div>`).join('');
+
+  openSheet(`
+    <div class="sheet-head">
+      <div class="sheet-title">${p.name}</div>
+      <button class="sheet-close" onclick="openPicker()">←</button>
+    </div>
+    <div class="totals-bar">
+      <div class="tot-cell"><div class="tot-v">${totDist}</div><div class="tot-l">km total</div></div>
+      <div class="tot-cell"><div class="tot-v">${totCals}</div><div class="tot-l">kcal total</div></div>
+      <div class="tot-cell"><div class="tot-v">${(p.sessions||[]).length}</div><div class="tot-l">sessions</div></div>
+    </div>
+    <div class="hist-list">${cards||'<div class="empty-msg">No sessions yet.<br>Start walking to record history.</div>'}</div>
+  `);
+}
+
+// ── FORMS ──
+function openNewForm(){
+  editingId=null;
+  selColor=COLORS[db.profiles.length % COLORS.length];
+  openSheet(buildForm(null));
+}
+function openEditForm(id){
+  editingId=id;
+  const p=db.profiles.find(p=>p.id===id);
+  selColor=p?.color||COLORS[0];
+  openSheet(buildForm(p));
+}
+
+function buildForm(p){
+  const sw=COLORS.map(c=>`<div class="sw ${c===selColor?'on':''}" style="background:${c}" onclick="pickColor('${c}')"></div>`).join('');
+  return `
+    <div class="sheet-head">
+      <div class="sheet-title">${p?'Edit Profile':'New Profile'}</div>
+      <button class="sheet-close" onclick="openPicker()">←</button>
+    </div>
+    <div class="p-form">
+      <div><label class="f-label">Name</label>
+        <input class="f-input" id="fName" type="text" placeholder="Your name" maxlength="20" value="${p?.name||''}">
+      </div>
+      <div><label class="f-label">Body Weight (lbs)</label>
+        <input class="f-input" id="fWeight" type="number" placeholder="165" min="66" max="660" value="${p?.weightLbs||''}">
+      </div>
+      <div><label class="f-label">Colour</label>
+        <div class="swatches" id="swRow">${sw}</div>
+      </div>
+      <div class="f-actions">
+        <button class="f-btn-save" onclick="saveForm()">${p?'Save':'Create'}</button>
+        <button class="f-btn-cancel" onclick="openPicker()">Cancel</button>
+        ${p?`<button class="f-btn-delete" onclick="deleteProfile('${p.id}')">Delete Profile</button>`:''}
+      </div>
+    </div>`;
+}
+
+function pickColor(c){
+  selColor=c;
+  document.querySelectorAll('.sw').forEach(s=>{
+    s.classList.toggle('on', s.style.background===c||s.style.backgroundColor===c);
+  });
+}
+
+function saveForm(){
+  const name=(document.getElementById('fName')?.value||'').trim();
+  const weight=parseFloat(document.getElementById('fWeight')?.value||'');
+  if(!name){document.getElementById('fName').focus();return;}
+  if(!weight||weight<44){document.getElementById('fWeight').focus();return;}
+  if(editingId){
+    const p=db.profiles.find(p=>p.id===editingId);
+    if(p){p.name=name;p.weightLbs=weight;p.color=selColor;}
+  } else {
+    const p={id:Date.now().toString(),name,weightLbs:weight,color:selColor,sessions:[]};
+    db.profiles.push(p);
+    if(!db.activeId) db.activeId=p.id;
+  }
+  saveData();
+  renderTopProfile();
+  openPicker();
+}
+
+function deleteProfile(id){
+  if(!confirm('Delete this profile and all session history?')) return;
+  db.profiles=db.profiles.filter(p=>p.id!==id);
+  if(db.activeId===id) db.activeId=db.profiles[0]?.id||null;
+  saveData();
+  renderTopProfile();
+  openPicker();
+}
+
+// ════════════════════════════════════════════
+// WAKE LOCK
+// ════════════════════════════════════════════
+let wakeLock=null;
+async function requestWakeLock(){
+  if(!('wakeLock' in navigator)) return;
+  try {
+    wakeLock=await navigator.wakeLock.request('screen');
+    document.getElementById('wakeBadge').textContent='SCREEN ALWAYS ON';
+    document.getElementById('wakeBadge').classList.add('on');
+    wakeLock.addEventListener('release',()=>{
+      document.getElementById('wakeBadge').textContent='SCREEN LOCK ACTIVE';
+      document.getElementById('wakeBadge').classList.remove('on');
+    });
+  } catch(e){}
+}
+function releaseWakeLock(){
+  if(wakeLock){wakeLock.release();wakeLock=null;}
+  document.getElementById('wakeBadge').textContent='SCREEN LOCK ACTIVE';
+  document.getElementById('wakeBadge').classList.remove('on');
+}
+// Re-acquire on visibility change (Android kills it when tab hides)
+document.addEventListener('visibilitychange',()=>{
+  if(wakeLock!==null&&document.visibilityState==='visible'&&connected) requestWakeLock();
+});
+
+// ════════════════════════════════════════════
+// RING RESIZE
+// ════════════════════════════════════════════
+window.addEventListener('resize', sizeRing);
+sizeRing();
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+(function init(){
+  if(!navigator.bluetooth){
+    document.getElementById('bleWarnBanner').style.display='block';
+    setControls(false);
+  }
+  renderTopProfile();
+  if(!db.profiles.length){
+    setTimeout(()=>openNewForm(), 500);
+  }
+})();
+</script>
+</body>
+</html>
